@@ -5,7 +5,7 @@ variable "bucket_name_prefix" {
 
 variable "dynamodb_table_name" {
   type    = string
-  default = "terraform-lock"
+  default = "terraform-state-lock"
 }
 
 variable "bucket_versioning" {
@@ -13,7 +13,7 @@ variable "bucket_versioning" {
   default = true
 }
 
-variable "tag_environment" {
+variable "trusted_iam_identity_arn" {
   type    = string
-  default = "dev"
+  default = null
 }
