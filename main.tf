@@ -1,12 +1,8 @@
 resource "aws_s3_bucket" "terraform_s3_state_bucket" {
   bucket_prefix = var.bucket_name_prefix
   acl           = "private"
-  # On deletion remove all objects in S3 bucket
-  force_destroy = true
-  # Prevent accidental deletion of this S3 bucket
-  # lifecycle {
-  #   prevent_destroy = true
-  # }
+  // On deletion remove all objects in S3 bucket
+  force_destroy = var.bucket_objects_deletion
 
   versioning {
     enabled = var.bucket_versioning
@@ -19,6 +15,7 @@ resource "aws_s3_bucket" "terraform_s3_state_bucket" {
       }
     }
   }
+  tags = var.tags
 }
 
 resource "aws_s3_bucket_public_access_block" "terraform_s3_state_bucket_public_access" {
@@ -39,6 +36,18 @@ resource "aws_dynamodb_table" "terraform_dynamodb_locks" {
     name = "LockID"
     type = "S"
   }
+  tags = var.tags
+}
+
+resource "aws_iam_role" "terraform_backend_iam_role" {
+  name_prefix        = "terraform-backend-"
+  description        = "Allows access to the terraform backend in S3 bucket and DynamoDB."
+  assume_role_policy = data.aws_iam_policy_document.terraform_backend_assume_role_policy.json
+  inline_policy {
+    name   = "terraform-backend-access-policy"
+    policy = data.aws_iam_policy_document.terraform_backend_access_policy.json
+  }
+  tags = var.tags
 }
 
 data "aws_iam_policy_document" "terraform_backend_access_policy" {
@@ -66,18 +75,8 @@ data "aws_iam_policy_document" "terraform_backend_assume_role_policy" {
 
     principals {
       type        = "AWS"
-      identifiers = [var.trusted_iam_identity_arn == null ? data.aws_caller_identity.current.arn : var.trusted_iam_identity_arn]
+      identifiers = [var.trusted_iam_identity_arn == "current-user" ? data.aws_caller_identity.current.arn : var.trusted_iam_identity_arn]
     }
-  }
-}
-
-resource "aws_iam_role" "terraform_backend_iam_role" {
-  name_prefix        = "terraform-backend-"
-  description        = "Allows access to the terraform backend in S3 bucket and DynamoDB."
-  assume_role_policy = data.aws_iam_policy_document.terraform_backend_assume_role_policy.json
-  inline_policy {
-    name   = "terraform-backend-access-policy"
-    policy = data.aws_iam_policy_document.terraform_backend_access_policy.json
   }
 }
 
