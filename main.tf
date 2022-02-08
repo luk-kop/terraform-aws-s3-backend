@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "terraform_s3_state_bucket" {
-  bucket_prefix = var.bucket_name_prefix
+  bucket_prefix = "${var.bucket_name_prefix}-"
   acl           = "private"
   // On deletion remove all objects in S3 bucket
   force_destroy = var.bucket_objects_deletion
@@ -15,7 +15,19 @@ resource "aws_s3_bucket" "terraform_s3_state_bucket" {
       }
     }
   }
+  logging {
+    target_bucket = aws_s3_bucket.terraform_s3_log_bucket.id
+    target_prefix = "log/"
+  }
   tags = var.tags
+}
+
+resource "aws_s3_bucket" "terraform_s3_log_bucket" {
+  bucket_prefix = "${var.bucket_name_prefix}-log-bucket-"
+  acl           = "log-delivery-write"
+  // On deletion remove all objects in S3 bucket
+  force_destroy = var.bucket_objects_deletion
+  tags          = var.tags
 }
 
 resource "aws_s3_bucket_public_access_block" "terraform_s3_state_bucket_public_access" {

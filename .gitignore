@@ -22,4 +22,4 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-example/
+examples/

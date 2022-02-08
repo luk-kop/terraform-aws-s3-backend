@@ -1,6 +1,6 @@
 variable "bucket_name_prefix" {
   type    = string
-  default = "terraform-state-dev-"
+  default = "terraform-state-dev"
 }
 
 variable "dynamodb_table_name" {
