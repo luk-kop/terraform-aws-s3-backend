@@ -15,14 +15,18 @@ resource "aws_s3_bucket" "terraform_s3_state_bucket" {
       }
     }
   }
-  logging {
-    target_bucket = aws_s3_bucket.terraform_s3_log_bucket.id
-    target_prefix = "log/"
+  dynamic "logging" {
+    for_each = var.logging_enabled ? [1] : []
+    content {
+      target_bucket = aws_s3_bucket.terraform_s3_log_bucket[0].id
+      target_prefix = "log/"
+    }
   }
   tags = var.tags
 }
 
 resource "aws_s3_bucket" "terraform_s3_log_bucket" {
+  count         = var.logging_enabled ? 1 : 0
   bucket_prefix = "${var.bucket_name_prefix}-log-bucket-"
   acl           = "log-delivery-write"
   // On deletion remove all objects in S3 bucket
