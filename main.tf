@@ -1,3 +1,4 @@
+// S3 configuration
 resource "aws_s3_bucket" "terraform_state_bucket" {
   bucket_prefix = "${var.bucket_name_prefix}-"
   // On deletion remove all objects in S3 bucket
@@ -12,13 +13,6 @@ resource "aws_s3_bucket" "terraform_state_bucket" {
       apply_server_side_encryption_by_default {
         sse_algorithm = "AES256"
       }
-    }
-  }
-  dynamic "logging" {
-    for_each = var.bucket_logging_enabled ? [1] : []
-    content {
-      target_bucket = aws_s3_bucket.terraform_logs_bucket[0].id
-      target_prefix = "log/"
     }
   }
 
@@ -51,7 +45,6 @@ resource "aws_s3_bucket_public_access_block" "terraform_s3_state_bucket_public_a
   restrict_public_buckets = true
 }
 
-
 resource "aws_s3_bucket_lifecycle_configuration" "terraform_state_bucket_lifecycle_rule" {
   count  = var.bucket_versioning_enabled && var.object_versions_lifecycle.enabled ? 1 : 0
   bucket = aws_s3_bucket.terraform_state_bucket.id
@@ -63,6 +56,14 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state_bucket_lifecyc
   }
 }
 
+resource "aws_s3_bucket_logging" "terraform_state_bucket_logging" {
+  count         = var.bucket_logging_enabled ? 1 : 0
+  bucket        = aws_s3_bucket.terraform_state_bucket.id
+  target_bucket = aws_s3_bucket.terraform_logs_bucket[0].id
+  target_prefix = "log/"
+}
+
+// DynamoDB configuration
 resource "aws_dynamodb_table" "terraform_dynamodb_locks" {
   name           = var.dynamodb_table_name
   billing_mode   = "PROVISIONED"
@@ -76,6 +77,7 @@ resource "aws_dynamodb_table" "terraform_dynamodb_locks" {
   tags = var.tags
 }
 
+// IAM configuration
 resource "aws_iam_role" "terraform_backend_iam_role" {
   name_prefix        = "terraform-backend-"
   description        = "Allows access to the terraform backend in S3 bucket and DynamoDB."
