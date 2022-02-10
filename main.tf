@@ -1,11 +1,11 @@
-resource "aws_s3_bucket" "terraform_s3_state_bucket" {
+resource "aws_s3_bucket" "terraform_state_bucket" {
   bucket_prefix = "${var.bucket_name_prefix}-"
   acl           = "private"
   // On deletion remove all objects in S3 bucket
   force_destroy = var.bucket_objects_deletion
 
   versioning {
-    enabled = var.bucket_versioning
+    enabled = var.bucket_versioning_enabled
   }
 
   server_side_encryption_configuration {
@@ -16,18 +16,28 @@ resource "aws_s3_bucket" "terraform_s3_state_bucket" {
     }
   }
   dynamic "logging" {
-    for_each = var.logging_enabled ? [1] : []
+    for_each = var.bucket_logging_enabled ? [1] : []
     content {
-      target_bucket = aws_s3_bucket.terraform_s3_log_bucket[0].id
+      target_bucket = aws_s3_bucket.terraform_logs_bucket[0].id
       target_prefix = "log/"
     }
   }
+  dynamic "lifecycle_rule" {
+    for_each = var.bucket_versioning_enabled && var.object_versions_lifecycle.enabled ? [1] : []
+    content {
+      enabled = true
+      noncurrent_version_expiration {
+        days = var.object_versions_lifecycle.days
+      }
+    }
+  }
+
   tags = var.tags
 }
 
-resource "aws_s3_bucket" "terraform_s3_log_bucket" {
-  count         = var.logging_enabled ? 1 : 0
-  bucket_prefix = "${var.bucket_name_prefix}-log-bucket-"
+resource "aws_s3_bucket" "terraform_logs_bucket" {
+  count         = var.bucket_logging_enabled ? 1 : 0
+  bucket_prefix = "${var.bucket_name_prefix}-logs-"
   acl           = "log-delivery-write"
   // On deletion remove all objects in S3 bucket
   force_destroy = var.bucket_objects_deletion
@@ -35,7 +45,7 @@ resource "aws_s3_bucket" "terraform_s3_log_bucket" {
 }
 
 resource "aws_s3_bucket_public_access_block" "terraform_s3_state_bucket_public_access" {
-  bucket                  = aws_s3_bucket.terraform_s3_state_bucket.id
+  bucket                  = aws_s3_bucket.terraform_state_bucket.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -75,12 +85,12 @@ data "aws_iam_policy_document" "terraform_backend_access_policy" {
   statement {
     sid       = "ListStateBucket"
     actions   = ["s3:ListBucket"]
-    resources = [aws_s3_bucket.terraform_s3_state_bucket.arn]
+    resources = [aws_s3_bucket.terraform_state_bucket.arn]
   }
   statement {
     sid       = "UpdateStateFile"
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = ["${aws_s3_bucket.terraform_s3_state_bucket.arn}/*"]
+    resources = ["${aws_s3_bucket.terraform_state_bucket.arn}/*"]
   }
 }
 
