@@ -4,18 +4,6 @@ resource "aws_s3_bucket" "terraform_state_bucket" {
   // On deletion remove all objects in S3 bucket
   force_destroy = var.bucket_objects_deletion
 
-  versioning {
-    enabled = var.bucket_versioning_enabled
-  }
-
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm = "AES256"
-      }
-    }
-  }
-
   tags = var.tags
 }
 
@@ -49,9 +37,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state_bucket_lifecyc
   count  = var.bucket_versioning_enabled && var.object_versions_lifecycle.enabled ? 1 : 0
   bucket = aws_s3_bucket.terraform_state_bucket.id
   rule {
+    id     = "old-versions"
     status = "Enabled"
     noncurrent_version_expiration {
-      days = var.object_versions_lifecycle.days
+      noncurrent_days = var.object_versions_lifecycle.days
     }
   }
 }
@@ -61,6 +50,23 @@ resource "aws_s3_bucket_logging" "terraform_state_bucket_logging" {
   bucket        = aws_s3_bucket.terraform_state_bucket.id
   target_bucket = aws_s3_bucket.terraform_logs_bucket[0].id
   target_prefix = "log/"
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state_bucket_sse" {
+  bucket = aws_s3_bucket.terraform_state_bucket.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_versioning" "terraform_state_bucket_versioning" {
+  count  = var.bucket_versioning_enabled ? 1 : 0
+  bucket = aws_s3_bucket.terraform_state_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
 }
 
 // DynamoDB configuration
