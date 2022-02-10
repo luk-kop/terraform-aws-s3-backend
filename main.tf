@@ -1,6 +1,5 @@
 resource "aws_s3_bucket" "terraform_state_bucket" {
   bucket_prefix = "${var.bucket_name_prefix}-"
-  acl           = "private"
   // On deletion remove all objects in S3 bucket
   force_destroy = var.bucket_objects_deletion
 
@@ -22,15 +21,6 @@ resource "aws_s3_bucket" "terraform_state_bucket" {
       target_prefix = "log/"
     }
   }
-  dynamic "lifecycle_rule" {
-    for_each = var.bucket_versioning_enabled && var.object_versions_lifecycle.enabled ? [1] : []
-    content {
-      enabled = true
-      noncurrent_version_expiration {
-        days = var.object_versions_lifecycle.days
-      }
-    }
-  }
 
   tags = var.tags
 }
@@ -38,10 +28,19 @@ resource "aws_s3_bucket" "terraform_state_bucket" {
 resource "aws_s3_bucket" "terraform_logs_bucket" {
   count         = var.bucket_logging_enabled ? 1 : 0
   bucket_prefix = "${var.bucket_name_prefix}-logs-"
-  acl           = "log-delivery-write"
   // On deletion remove all objects in S3 bucket
   force_destroy = var.bucket_objects_deletion
   tags          = var.tags
+}
+
+resource "aws_s3_bucket_acl" "terraform_state_bucket_acl" {
+  bucket = aws_s3_bucket.terraform_state_bucket.id
+  acl    = "private"
+}
+
+resource "aws_s3_bucket_acl" "terraform_logs_bucket_acl" {
+  bucket = aws_s3_bucket.terraform_logs_bucket[0].id
+  acl    = "log-delivery-write"
 }
 
 resource "aws_s3_bucket_public_access_block" "terraform_s3_state_bucket_public_access" {
@@ -50,6 +49,18 @@ resource "aws_s3_bucket_public_access_block" "terraform_s3_state_bucket_public_a
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
+}
+
+
+resource "aws_s3_bucket_lifecycle_configuration" "terraform_state_bucket_lifecycle_rule" {
+  count  = var.bucket_versioning_enabled && var.object_versions_lifecycle.enabled ? 1 : 0
+  bucket = aws_s3_bucket.terraform_state_bucket.id
+  rule {
+    status = "Enabled"
+    noncurrent_version_expiration {
+      days = var.object_versions_lifecycle.days
+    }
+  }
 }
 
 resource "aws_dynamodb_table" "terraform_dynamodb_locks" {
