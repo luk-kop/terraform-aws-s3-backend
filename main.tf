@@ -1,3 +1,16 @@
+locals {
+  bucket_acls = {
+    state_bucket = {
+      bucket = aws_s3_bucket.terraform_state_bucket.id,
+      acl    = "private"
+    },
+    logs_bucket = {
+      bucket = aws_s3_bucket.terraform_logs_bucket[0].id,
+      acl    = "log-delivery-write"
+    }
+  }
+}
+
 // S3 configuration
 resource "aws_s3_bucket" "terraform_state_bucket" {
   bucket_prefix = "${var.bucket_name_prefix}-"
@@ -15,14 +28,10 @@ resource "aws_s3_bucket" "terraform_logs_bucket" {
   tags          = var.tags
 }
 
-resource "aws_s3_bucket_acl" "terraform_state_bucket_acl" {
-  bucket = aws_s3_bucket.terraform_state_bucket.id
-  acl    = "private"
-}
-
-resource "aws_s3_bucket_acl" "terraform_logs_bucket_acl" {
-  bucket = aws_s3_bucket.terraform_logs_bucket[0].id
-  acl    = "log-delivery-write"
+resource "aws_s3_bucket_acl" "terraform_bucket_acl" {
+  for_each = local.bucket_acls
+  bucket   = each.value.bucket
+  acl      = each.value.acl
 }
 
 resource "aws_s3_bucket_public_access_block" "terraform_s3_state_bucket_public_access" {

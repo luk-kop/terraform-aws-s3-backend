@@ -1,6 +1,7 @@
 # Terraform remote S3 state backend
 
 [![Terraform](https://img.shields.io/badge/Terraform-1.0.0-blueviolet.svg)](https://www.terraform.io/)
+[![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://lbesson.mit-license.org/)
 
 > Terraform module which set up state backend using AWS S3 and DynamoDB services.
 
@@ -20,7 +21,7 @@ module "tf_s3_state_backend" {
     days    = 30
   }
   trusted_iam_identity_arn = "arn:aws:iam::123456789012:user/example-user"
-  bucket_objects_deletion  = true
+  bucket_objects_deletion  = false
 
   tags = {
     Terraform   = "true",
